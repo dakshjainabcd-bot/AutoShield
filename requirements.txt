@@ -1,0 +1,10 @@
+numpy
+scikit-learn
+pandas
+fastapi
+uvicorn[standard]
+websockets
+python-can
+pyserial
+pytest
+httpx

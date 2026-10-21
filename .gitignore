@@ -1,0 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Large raw logs (share these through the team shared drive, not Git)
+ml/data/raw/
+
+# Local databases created by the backend
+*.db
+*.sqlite
+
+# Arduino / firmware build output (firmware/bin/ is NOT ignored on purpose:
+# the .bin images for Phase 7 are committed there)
+build/
+*.elf
+*.map
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
