@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "step_s": 0.1,
+  "window_s": 1.0,
+  "monitors": {
+    "hb_deadline_ms": 300,
+    "rate_factor": 3.0,
+    "rate_unknown_limit_hz": 20.0,
+    "rate_consecutive_windows": 3,
+    "drift_ewma_alpha": 0.1,
+    "drift_warn_cdps": 10.0,
+    "drift_fault_cdps": 20.0,
+    "drift_consecutive_windows": 5
+  },
+  "policy": {
+    "anomaly_low_windows": 3,
+    "anomaly_medium_s": 5.0,
+    "verify_healthy_windows": 10,
+    "verify_s": {"ISOLATE": 3.0, "RESTART": 5.0, "FW_ROLLBACK": 5.0, "SAFE_MODE": 5.0},
+    "hard_reset_after_s": 1.0,
+    "cooldown_s": 2.0,
+    "isolation_hold_s": 10.0
+  }
+}

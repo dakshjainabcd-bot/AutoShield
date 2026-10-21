@@ -7,34 +7,60 @@ AutoShield watches a (simulated or real) CAN bus and catches faults that are
 *valid on the wire but wrong in behaviour*: CAN flooding, ECU dropout, sensor
 drift and faulty firmware. It decides on a response, acts, and verifies it.
 
-> **Status:** Phase 0 (foundations and environment) is the current phase.
-> The simulator, backend, dashboard and firmware arrive in later phases, so
-> this README only promises what exists today. Sections marked **(later)**
-> describe commands that will work once that phase is merged.
+> **Status:** Phase 0 (foundations) is done. **Phase 1 (contracts and simulation
+> core) is the current phase.** The ML model, backend, dashboard and firmware arrive
+> in later phases. This README only promises what exists today; sections marked
+> **(later)** describe commands that work once that phase is merged.
 
 ---
 
-## 1. What you need before you start (prerequisites)
+## 1. Prerequisites: what every teammate needs
 
-### Everyone (all roles)
+### 1.1 Everyone (all roles)
 
 | Item | Version | Why | Check it with |
 | --- | --- | --- | --- |
 | Git | any recent | version control | `git --version` |
-| GitHub account | - | shared repository | must be added as collaborator |
-| Python | **3.12 recommended** (tested with 3.12.3) | simulator, ML, backend | `python --version` (`python3 --version` on macOS/Linux) |
+| GitHub account | - | shared repository | you must be added as a collaborator |
+| Python | **3.12 recommended** (tested with 3.12.3; 3.10 or newer should work) | simulator, algorithms, tests | `python --version` (`python3 --version` on macOS/Linux) |
 | pip + venv | come with Python | isolated packages | `python -m pip --version` |
+| Text editor | VS Code + Python extension is recommended | editing | optional |
 | Modern browser | Chrome, Edge or Firefox | dashboard (later) | - |
-| VS Code + Python extension | optional | editing | - |
+| Disk space | about 1 GB free | Python packages | - |
+| Internet | needed once | to install packages | - |
 
-### Firmware people only (R1, and R2 for the C++ port later)
+**Python packages** (all in `requirements.txt`, installed in Section 3). Phase 1 itself only
+uses `numpy` and `pytest`; the others are needed in later phases and are installed now so
+that everybody has the same environment.
+
+| Package | Used from |
+| --- | --- |
+| numpy | Phase 1 (simulator, features, monitors) |
+| pytest | Phase 1 (all tests) |
+| scikit-learn, pandas | Phase 2 (One-Class SVM, datasets) |
+| fastapi, uvicorn[standard], websockets, httpx | Phase 2 (backend, WebSocket, API tests) |
+| python-can, pyserial | Phase 5 (serial bridge, virtual bus) |
+
+**You do NOT need** the Arduino IDE, any board, or any hardware for Phase 1.
+
+### 1.2 Firmware people only (R1, and R2 for the C++ port later)
 
 | Item | Notes |
 | --- | --- |
-| Arduino IDE **2.x** | from arduino.cc |
-| ESP32 board package by Espressif Systems | installed through Boards Manager (Section 4) |
+| Arduino IDE **2.x** | from arduino.cc (needed from Phase 0 hardware work; not for Phase 1 code) |
+| ESP32 board package by Espressif Systems | installed through Boards Manager (Section 5) |
 | USB-serial driver | only if no port appears; use a **data** cable |
 | Hardware | see `docs/hardware_inventory.md` |
+
+### 1.3 Operating system notes
+
+* **Windows:** use *Command Prompt* or *PowerShell*. When you install Python, tick **Add python.exe to PATH**.
+  If `python` is not found, try `py -3.12`. Commands in this README with `/` in a path (for example
+  `python tools/check_env.py`) work on Windows too.
+* **macOS / Linux:** use `python3` where this README says `python` *before* the virtual environment is active.
+  After activation, `python` works.
+* The code was tested on Linux with Python 3.12.3. The Windows and macOS commands are standard but were not run
+  by the author: if one fails, see Section 8 and tell the team.
 
 ---
 
@@ -55,6 +81,13 @@ One-time Git identity (use the same email as your GitHub account):
 ```bash
 git config --global user.name "Your Name"
 git config --global user.email "you@example.com"
+```
+
+Already cloned earlier? Update instead:
+
+```bash
+git checkout main
+git pull
 ```
 
 ---
@@ -94,15 +127,23 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+If the team has already created `requirements.lock.txt`, use it instead so that
+everybody has identical versions: `pip install -r requirements.lock.txt`.
+
 ### 3.4 Verify (must all say OK)
 
 ```bash
 python tools/check_env.py
-pytest
+python -m pytest -q
 ```
 
-Expected: ten lines starting with `OK`, then "Environment is ready", then
-pytest reporting all tests passed. If a line says `FAIL`, see Section 7.
+Expected:
+
+* `check_env.py`: ten lines starting with `OK`, then "Environment is ready".
+  Version numbers may differ from your teammates' (that is fine until the lock file exists).
+* `pytest`: **`81 passed`** (it takes a few seconds). If you are on Phase 0 files only, you will see `2 passed`.
+
+If a line says `FAIL` or a test fails, see Section 8.
 
 ### 3.5 Lock versions (done once by the team lead, then everyone uses it)
 
@@ -113,11 +154,69 @@ pip freeze > requirements.lock.txt
 ```
 
 and commits it. From then on everyone installs with
-`pip install -r requirements.lock.txt` so versions are identical.
+`pip install -r requirements.lock.txt`.
 
 ---
 
-## 4. Arduino IDE setup (firmware people only)
+## 4. Phase 1: run the simulated vehicle
+
+Everything in this section needs only the Python environment from Section 3.
+
+### 4.1 Run the whole test suite
+
+```bash
+python -m pytest -q
+```
+
+Run one file or one test:
+
+```bash
+python -m pytest tests/test_policy.py -q
+python -m pytest -q -k flood
+```
+
+### 4.2 Run the scripted scenario and read the timeline
+
+```bash
+python tools/run_scenario.py
+```
+
+It simulates 190 seconds of a vehicle network with four injected faults and a test burst, and prints
+what the supervisor did. A healthy-looking result has, in this order: a flood that is detected and
+isolated (around 60 s), a hang that is detected and restarted (around 90 s), a drift that is flagged
+(around 121 s), a faulty firmware that is rolled back (around 154 s), and **no alarm** during the test
+burst at 170 s.
+
+Options:
+
+```bash
+python tools/run_scenario.py --seed 7 --duration 120   # different random seed, shorter run
+python tools/run_scenario.py --no-auto-recovery        # detect and report only, never act
+```
+
+The same seed always gives the same run, so teammates can compare outputs.
+
+### 4.3 Try the simulator by hand
+
+Start `python`, then:
+
+```python
+from sim.vehicle_sim import VehicleSim
+sim = VehicleSim(seed=1)
+frames, ref = sim.advance(10.0)      # simulate 10 seconds
+print(len(frames) / 10)              # about 71 frames per second
+sim.inject("flood", duration_s=2)    # inject a CAN flood for 2 seconds
+```
+
+### 4.4 Where is what
+
+Read `docs/phase1_roadmap.md` for the step-by-step guide, the design decisions and the Phase 1 checklist.
+The four contract files in `contracts/` are the single source of truth for every message; do not change
+them without a version bump and a message to the whole team.
+
+---
+
+## 5. Arduino IDE setup (firmware people only)
 
 1. Install Arduino IDE 2.x.
 2. **File > Preferences** (macOS: **Arduino IDE > Settings**). In
@@ -137,21 +236,23 @@ and commits it. From then on everyone installs with
 
 ---
 
-## 5. Folder layout
+## 6. Folder layout
 
 ```
 autoshield/
   README.md   requirements.txt   pytest.ini   .gitignore
-  contracts/   CAN catalogue, schemas, harness commands, API (Phase 1)
-  docs/        hardware_inventory.md, pinmap.md, decisions.md, phase0_roadmap.md
-  sim/         simulated vehicle network (Phase 1)
-  core/        features, monitors, policy, model, config (Phase 1-2)
+  contracts/   can_catalogue.md, telemetry_schema.md, harness_commands.md, api.md, examples/   (Phase 1)
+  docs/        hardware_inventory.md, pinmap.md, decisions.md, phase0_roadmap.md, phase1_roadmap.md
+  sim/         vehicle_sim.py, params.py, scenarios.py, runner.py      simulated vehicle (Phase 1)
+  core/        config.json, config.py, frames.py, catalogue.py, can_codec.py,
+               features.py, monitors.py, policy.py, supervisor.py      reference algorithms (Phase 1)
   ml/          training code, data/, models/model.json (Phase 2)
   backend/     FastAPI server, hub, serial bridge, storage (Phase 2, 5)
   web/         landing page, dashboard, assets, vendor/ (Phase 3)
   firmware/    gateway/, target/, shared/, tests/, bin/ (Phase 0, 4-7)
-  tools/       check_env.py, make_layout.py, later replay/compare/metrics
-  tests/       pytest tests
+  tools/       check_env.py, make_layout.py, run_scenario.py, later replay/compare/metrics
+  tests/       pytest tests (test_smoke, test_codec, test_features, test_sim,
+               test_monitors, test_policy, test_scenarios, test_contracts)
 ```
 
 Git does not keep empty folders, so each empty folder holds a `.gitkeep` file.
@@ -161,7 +262,7 @@ harmless either way. If a folder ever goes missing, run
 
 ---
 
-## 6. Team workflow
+## 7. Team workflow
 
 - `main` always works. After the Phase 0 first commit, nobody pushes to it
   directly.
@@ -170,7 +271,7 @@ harmless either way. If a folder ever goes missing, run
 - Pull before you start work: `git pull`.
 - Large raw logs go on the shared drive, **not** in Git.
 - Contract changes (CAN catalogue, telemetry, API) need a version bump and a
-  message to the whole team.
+  message to the whole team. The current contract is tagged `contracts-v1`.
 
 | Role | Owns |
 | --- | --- |
@@ -183,7 +284,7 @@ Fill in names and backups in `docs/decisions.md`.
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 | Symptom | Likely cause and fix |
 | --- | --- |
@@ -191,13 +292,17 @@ Fill in names and backups in `docs/decisions.md`.
 | `FAIL` lines in `check_env.py` | venv not activated (no `(.venv)` in prompt), or `pip install` did not finish; activate and reinstall |
 | `externally-managed-environment` error | You are installing outside the venv. Activate `.venv` first; do not use `--break-system-packages` |
 | `pytest: command not found` | venv not active; use `python -m pytest` |
+| `ModuleNotFoundError: No module named 'core'` (or `sim`) | You are not in the repository root, or you ran something from inside a sub-folder. `cd` to the folder that contains `pytest.ini` |
+| `ModuleNotFoundError: No module named 'numpy'` | venv not active, or packages not installed (Section 3) |
+| pytest reports `no tests ran` or `2 passed` instead of `81 passed` | You have not copied the Phase 1 files yet, or you are in the wrong folder |
+| A test passes sometimes and fails sometimes | An unseeded random generator in the new code. Use `np.random.default_rng(seed)` |
 | Different results on different laptops | Different package versions; use `requirements.lock.txt` |
 | Upload fails / port vanishes | Bad cable, or another program (e.g. Serial Monitor) holds the port |
 | Two boards, unsure which port is which | Unplug one; the port that disappears is that board. Or run `hello_serial`, which prints the chip model |
 
 ---
 
-## 8. Running the system (later)
+## 9. Running the full system (later)
 
 These do not work until the named phase is merged:
 
@@ -208,4 +313,4 @@ python -m uvicorn backend.main:app --port 8000     # Phase 2
 ```
 
 All thresholds in the project are starting values to be tuned from data, not
-measured results.
+measured results. Everything printed by the simulator is simulation, not hardware.
