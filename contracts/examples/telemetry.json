@@ -1,0 +1,9 @@
+{"type":"telemetry","v":1,"mode":"hw","t_ms":123456,"run_id":7,
+ "bus":{"fps":71.0,"load_pct":1.6,"rx_overflow":0},
+ "features":[71.0,0.70,99.9,0.6,20.0,0.4],
+ "ml":{"anomaly_score":-0.50,"threshold":0.0,"anomaly":false,"model":"2.0"},
+ "monitors":{"hb_age_ms":42,"flood":false,"drift_ewma":3.0,"drift_state":"ok"},
+ "nodes":[{"id":1,"state":"RUN","bank":"A","fw":"1.0.0","ota_state":"VALID","isolated":false}],
+ "sensor":{"node":1,"gz_cdps":12,"ref_gz_cdps":10,"trust":1.0},
+ "context":{"test_burst":false,"auto_recovery":true},
+ "severity":"NORMAL","action":null}
