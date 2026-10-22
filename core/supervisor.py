@@ -1,10 +1,14 @@
-"""The Phase 1 reference supervisor: features + monitors + policy in one loop.
+"""The reference supervisor: features + monitors (+ optional SVM) + policy in one loop.
 
-Phase 2 wraps this (plus the SVM) in the 'virtual gateway'. The firmware in
+Phase 2 wraps this in the 'virtual gateway' (backend/gateway.py). The firmware in
 Phase 5 must give the same answers on the same trace (replay parity test).
 
 Call step(t_end, new_frames, new_ref_samples) once every 100 ms. It only looks
 at frames and reference samples, never at simulator internals.
+
+Phase 2 change: an optional `detector` (core/model.py: SvmModel) can be plugged
+in. It needs two things: anomaly_score(features) and a threshold attribute.
+With detector=None the behaviour is exactly the Phase 1 behaviour.
 """
 from dataclasses import dataclass
 from typing import List, Optional
@@ -30,10 +34,12 @@ class StepResult:
     drift_trust: float
     decision: Decision
     evaluated: bool            # False during the first window (warm-up)
+    anomaly_score: float = 0.0   # SVM score (0.0 when no detector); higher = more unusual
+    anomaly_raw: bool = False    # score above threshold, BEFORE the context rules below
 
 
 class Supervisor:
-    def __init__(self, cfg=None, run_id=0, auto_recovery=True):
+    def __init__(self, cfg=None, run_id=0, auto_recovery=True, detector=None):
         self.cfg = cfg or load_config()
         m = self.cfg["monitors"]
         self.W = self.cfg["window_s"]
@@ -44,6 +50,7 @@ class Supervisor:
         self.drift = DriftMonitor(m["drift_ewma_alpha"], m["drift_warn_cdps"],
                                   m["drift_fault_cdps"], m["drift_consecutive_windows"])
         self.policy = PolicyEngine(self.cfg, run_id=run_id, auto_recovery=auto_recovery)
+        self.detector = detector
         self._held = []        # frames not yet "arrived" (t >= t_end)
         self._buf = []         # frames inside the rolling buffer
         self._ref = []         # reference gyro samples (t, gz)
@@ -67,9 +74,9 @@ class Supervisor:
 
     def start_deploy(self, t, grace_s=2.0):
         """A firmware deployment started. The node reboots and is silent for a
-        moment, so 'heartbeat missed' is ignored for grace_s (boot settling,
-        roadmap 7.5). Without this the supervisor would try to restart a node
-        that is simply booting its new image."""
+        moment, so 'heartbeat missed' AND the SVM anomaly are ignored for grace_s
+        (boot settling, roadmap 7.5). Without this the supervisor would try to
+        restart (or roll back) a node that is simply booting its new image."""
         self._grace_until = t + grace_s
         self._queued.append(make_event(t, "fw_deploy_started", "NORMAL", "canary", self.run_id))
 
@@ -99,13 +106,20 @@ class Supervisor:
 
         evaluated = t_end >= self.W - 1e-9
         burst = self.test_burst_active(t_end)
+        score, anomaly_raw, anomaly = 0.0, False, False
         if evaluated:
             flood = self.rate.update(window, self.W, test_burst_active=burst)
             hb_missed = self.hb.missed(t_end) and t_end >= self._grace_until
             self.drift.update(self._residual(window, t_end))
+            if self.detector is not None:
+                score = float(self.detector.anomaly_score(feats))
+                anomaly_raw = score > self.detector.threshold
+                # Context rules: an isolated node and a node that is still booting a
+                # new image are silent on purpose, so their odd features are not a fault.
+                anomaly = anomaly_raw and (t_end >= self._grace_until) and not self.isolated
         else:
             flood, hb_missed = False, False
-        flags = Flags(anomaly=False, hb_missed=hb_missed, flood=flood, drift=self.drift.state)
+        flags = Flags(anomaly=anomaly, hb_missed=hb_missed, flood=flood, drift=self.drift.state)
         ctx = Context(test_burst=burst, node_state=self.node_state, isolated=self.isolated)
         if evaluated:
             dec = self.policy.step(t_end, flags, ctx)
@@ -122,7 +136,8 @@ class Supervisor:
         elif dec.action == "RESTORE":
             self.isolated = False
         return StepResult(t_end, feats, fps, bus_load_pct(fps), age, flags, ctx,
-                          self.drift.ewma, self.drift.trust(), dec, evaluated)
+                          self.drift.ewma, self.drift.trust(), dec, evaluated,
+                          anomaly_score=score, anomaly_raw=anomaly_raw)
 
     def _residual(self, window, t_end):
         """Mean node gyro_z minus mean reference gyro_z over the last 100 ms."""

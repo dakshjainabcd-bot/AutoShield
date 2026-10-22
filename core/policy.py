@@ -11,6 +11,10 @@ Design decisions made in Phase 1 (they close gaps in the original text):
     is ignored (otherwise isolation could never be verified).
   * After an isolation is verified the node is held isolated for
     isolation_hold_s, then restored (relay back + hard reset).
+
+Phase 2 change (G11): the SVM anomaly streak is not counted while a
+gateway-started test burst is active, so a burst can never leave a long
+streak behind that would turn into an instant Medium action afterwards.
 """
 from dataclasses import dataclass, field, replace
 from typing import List, Optional
@@ -33,7 +37,7 @@ def make_event(t, kind, severity, detail, run_id=0, node=1):
 
 @dataclass(frozen=True)
 class Flags:
-    anomaly: bool = False      # SVM anomaly (always False until Phase 2)
+    anomaly: bool = False      # SVM anomaly (always False when no detector is plugged in)
     hb_missed: bool = False
     flood: bool = False
     drift: str = "ok"          # 'ok' | 'warn' | 'fault'
@@ -136,7 +140,8 @@ class PolicyEngine:
         dec = Decision(state=self.state, severity=self.last_sev)
         # An isolated node is silent on purpose: do not treat that as a fault.
         f = replace(flags, hb_missed=False) if ctx.isolated else flags
-        self.anomaly_streak = self.anomaly_streak + 1 if f.anomaly else 0
+        # G11: do not build an anomaly streak during a gateway-started test burst.
+        self.anomaly_streak = self.anomaly_streak + 1 if (f.anomaly and not ctx.test_burst) else 0
 
         if self.state == "MONITORING":
             self._monitoring(t, f, ctx, dec)

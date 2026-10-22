@@ -3,6 +3,10 @@
 Every 100 ms: advance the simulator, give the new frames to the supervisor, and
 carry out whatever action the supervisor decided. The supervisor never looks
 inside the simulator; it only sees frames.
+
+Phase 2 additions (both optional, defaults keep the Phase 1 behaviour):
+  detector    an SVM model (core/model.py) to plug into the supervisor
+  sim_params  overrides for sim/params.py (used to vary the timing noise)
 """
 from dataclasses import dataclass, field
 from typing import List
@@ -27,11 +31,12 @@ class RunResult:
     sim: VehicleSim = None
 
 
-def run_closed_loop(scenario, duration, seed=1, auto_recovery=True, cfg=None, run_id=0):
+def run_closed_loop(scenario, duration, seed=1, auto_recovery=True, cfg=None, run_id=0,
+                    detector=None, sim_params=None):
     cfg = cfg or load_config()
     step_s = cfg["step_s"]
-    sim = VehicleSim(seed=seed)
-    sup = Supervisor(cfg, run_id=run_id, auto_recovery=auto_recovery)
+    sim = VehicleSim(seed=seed, params=sim_params)
+    sup = Supervisor(cfg, run_id=run_id, auto_recovery=auto_recovery, detector=detector)
     res = RunResult(ground_truth=ground_truth(scenario), sim=sim)
     pending = sorted(scenario, key=lambda e: e[0])
     n_steps = int(round(duration / step_s))
