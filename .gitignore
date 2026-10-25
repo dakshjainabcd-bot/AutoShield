@@ -22,3 +22,5 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+landing/node_modules/
+landing/dist/

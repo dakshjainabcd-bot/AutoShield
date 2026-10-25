@@ -1,58 +1,155 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AutoShield dashboard (Phase 2 test page)</title>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoShield — Dashboard</title>
+<script>try{var t=localStorage.getItem("as-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk&display=swap">
+<link rel="stylesheet" href="../assets/css/style.css">
 <style>
-  body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 1rem; color: #0F2A43; background: #f4f6f8; }
-  .badge { padding: .2rem .6rem; border-radius: 4px; background: #B7791F; color: #fff; font-weight: bold; }
-  button { margin: .2rem; padding: .5rem .8rem; }
-  pre { background: #fff; padding: .6rem; overflow: auto; max-height: 22rem; }
-  #sev { font-size: 1.6rem; font-weight: bold; }
-</style>
-</head>
+main{padding:24px max(20px,5vw) 56px;display:grid;gap:16px;max-width:1360px;margin:0 auto}
+#banner{border-radius:var(--r);padding:24px 28px;border:1px solid var(--line);background:linear-gradient(90deg,color-mix(in srgb,var(--c) 28%,var(--surf)),var(--surf));border-left:8px solid var(--c);--c:var(--s-NORMAL);transition:border-color .3s}
+#banner h1{margin:2px 0;font-size:clamp(34px,6vw,64px);font-weight:400;letter-spacing:.02em;color:var(--c)}
+#banner p{margin:0;color:var(--mut);font-size:18px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile b{display:block;font-size:clamp(28px,3.4vw,44px);font-weight:400;font-variant-numeric:tabular-nums}
+.tile small{color:var(--mut)}
+#t-node{font-size:clamp(20px,2.3vw,30px)}
+.charts,.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+canvas{width:100%;height:170px;display:block}
+h2{margin:0 0 10px;font-size:13px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+#ev{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto;font-size:14px}
+#ev li{animation:slidein .45s var(--ease);display:grid;grid-template-columns:64px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+#ev time{color:var(--mut);font-variant-numeric:tabular-nums}
+#ev i{font-style:normal;padding:0 8px;border-radius:6px;margin-right:8px;background:var(--surf2)}
+.ctl{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.ctl p{grid-column:1/-1;margin:0;color:var(--mut);font-size:14px;min-height:22px}
+.sw{display:flex;gap:10px;align-items:center;grid-column:1/-1}
+@media(max-width:560px){.hide-s,.bar .logo{display:none}.bar{gap:8px}.bar .btn{padding:0 12px;min-height:40px}.badge{padding:3px 9px;font-size:11px}}
+</style></head>
 <body>
-<h2>AutoShield dashboard <small>(Phase 2 test page: raw stream only, replaced in Phase 3)</small></h2>
-<p><span id="badge" class="badge">-</span> connection: <b id="conn">connecting</b>
-   &nbsp; severity: <span id="sev">-</span> &nbsp; <a href="/">Back to overview</a></p>
-<div>
-  <button onclick="inject({fault:'flood',duration_ms:5000})">Inject flood 5 s</button>
-  <button onclick="inject({fault:'hang'})">Inject hang</button>
-  <button onclick="inject({fault:'drift',slope:50})">Inject drift</button>
-  <button onclick="inject({fault:'faulty_fw'})">Deploy faulty firmware</button>
-  <button onclick="control({cmd:'test_burst',ms:2000})">Test burst 2 s</button>
-  <button onclick="control({cmd:'reset_bench'})">Reset bench</button>
-</div>
-<h3>Latest telemetry</h3><pre id="tel">waiting...</pre>
-<h3>Events (newest first)</h3><pre id="ev"></pre>
+<a class="skip" href="#banner">Skip to status</a>
+<header class="bar">
+ <a class="btn" href="../">← Overview</a><a class="logo" href="../">AutoShield</a>
+ <span class="sp"></span>
+ <span class="hide-s eyebrow" id="model"></span>
+ <button class="btn" id="theme" type="button" aria-label="Switch colour theme">Theme</button>
+ <span class="badge" id="badge" data-m="none">Connecting</span>
+</header>
+<main>
+ <section id="banner" role="status" aria-live="polite">
+  <div class="eyebrow">Current severity</div><h1 id="sev">—</h1><p id="act">Waiting for telemetry…</p>
+ </section>
+ <section class="tiles" aria-label="Key readings">
+  <div class="card tile"><small>Anomaly score (threshold <span id="thr">0</span>)</small><b id="t-score">—</b></div>
+  <div class="card tile"><small>Frames per second</small><b id="t-fps">—</b></div>
+  <div class="card tile"><small>Bus load %</small><b id="t-load">—</b></div>
+  <div class="card tile"><small>Heartbeat age ms</small><b id="t-hb">—</b></div>
+  <div class="card tile"><small>Node · bank</small><b id="t-node">—</b></div>
+ </section>
+ <section class="charts">
+  <div class="card"><h2>Anomaly score, last 60 s</h2><canvas id="c1" role="img" aria-label="Anomaly score over time"></canvas></div>
+  <div class="card"><h2>Frames per second, last 60 s</h2><canvas id="c2" role="img" aria-label="Frames per second over time"></canvas></div>
+ </section>
+ <section class="cols">
+  <div class="card"><h2>Incident timeline</h2><ul id="ev"><li><time></time><span>No events yet.</span></li></ul></div>
+  <div class="card"><h2>Faults and control</h2>
+   <div class="ctl">
+    <button class="btn" data-i='{"fault":"flood","duration_ms":5000}'>Inject flood</button>
+    <button class="btn" data-i='{"fault":"hang"}'>Inject hang</button>
+    <button class="btn" data-i='{"fault":"drift","slope":50}'>Inject drift</button>
+    <button class="btn" data-i='{"fault":"faulty_fw"}'>Deploy faulty firmware</button>
+    <button class="btn" data-c='{"cmd":"test_burst","node":1,"ms":2000}'>Test burst (expected)</button>
+    <button class="btn" data-c='{"cmd":"reset_bench"}'>Reset bench</button>
+    <label class="sw"><input type="checkbox" id="auto" checked> Auto-recovery</label>
+    <p id="msg"></p>
+   </div></div>
+ </section>
+</main>
 <script>
-const $ = id => document.getElementById(id);
-function post(url, body) {
-  return fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)})
-    .then(r => r.ok ? r.json() : r.text().then(t => alert(url + ': ' + t)));
+(function(){
+"use strict";
+var $=function(i){return document.getElementById(i)};
+var CV=function(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||"#fff"};
+var N=600,score=[],fps=[],ws=null,tries=0,live=false,rp=null,evSeen=0;
+var COL={NORMAL:"--s-NORMAL",LOW:"--s-LOW",MEDIUM:"--s-MEDIUM",HIGH:"--s-HIGH",CRITICAL:"--s-CRITICAL"};
+function setBadge(m,t){var b=$("badge");b.dataset.m=m;b.textContent=t}
+function draw(cv,a,thr,color){
+ var d=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=w*d;cv.height=h*d;
+ var g=cv.getContext("2d");g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);
+ if(a.length<2)return;
+ var lo=Math.min.apply(null,a),hi=Math.max.apply(null,a);
+ if(thr!==null){lo=Math.min(lo,thr);hi=Math.max(hi,thr)}
+ if(hi-lo<1e-6){hi=lo+1}var rlo=lo,rhi=hi,pad=(hi-lo)*.1;lo-=pad;hi+=pad;
+ var y=function(v){return h-8-(v-lo)/(hi-lo)*(h-16)};
+ g.strokeStyle=CV("--line");g.lineWidth=1;
+ for(var k=1;k<4;k++){g.beginPath();g.moveTo(0,h*k/4);g.lineTo(w,h*k/4);g.stroke()}
+ if(thr!==null){g.setLineDash([6,5]);g.strokeStyle=CV("--mut");g.beginPath();g.moveTo(0,y(thr));g.lineTo(w,y(thr));g.stroke();g.setLineDash([])}
+ g.fillStyle=CV("--mut");g.font="11px system-ui,sans-serif";g.fillText(rhi.toFixed(rhi<10?2:0),4,12);g.fillText(rlo.toFixed(rlo<10?2:0),4,h-4);
+ g.strokeStyle=color;g.lineWidth=2;g.beginPath();
+ a.forEach(function(v,i){var x=i/(N-1)*w+(w-(a.length-1)/(N-1)*w);i?g.lineTo(x,y(v)):g.moveTo(x,y(v))});g.stroke();
 }
-const inject = b => post('/api/inject', b);
-const control = b => post('/api/control', b);
-let lines = [];
-function connect() {
-  const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
-  ws.onopen = () => { $('conn').textContent = 'online'; };
-  ws.onclose = () => { $('conn').textContent = 'offline, retrying'; setTimeout(connect, 1000); };
-  ws.onmessage = e => {
-    const m = JSON.parse(e.data);
-    if (m.type === 'telemetry') {
-      $('badge').textContent = m.mode === 'hw' ? 'HARDWARE' : 'SIMULATION';
-      $('sev').textContent = m.severity;
-      $('tel').textContent = JSON.stringify(m, null, 1);
-    } else if (m.type === 'event') {
-      lines.unshift((m.t_ms / 1000).toFixed(1) + ' s  ' + m.kind + '  ' + m.severity + '  ' + m.detail);
-      lines = lines.slice(0, 60);
-      $('ev').textContent = lines.join('\n');
-    }
-  };
+function push(a,v){a.push(v);if(a.length>N)a.shift()}
+function addEvent(e){
+ var ul=$("ev");if(!evSeen){ul.textContent=""}evSeen++;
+ var li=document.createElement("li"),t=document.createElement("time"),s=document.createElement("span"),i=document.createElement("i");
+ t.textContent=(e.t_ms/1000).toFixed(1)+"s";
+ i.textContent=e.severity||"";i.style.color="var("+(COL[e.severity]||COL.NORMAL)+")";
+ s.appendChild(i);s.appendChild(document.createTextNode(e.kind+(e.detail?" — "+e.detail:"")));
+ li.appendChild(t);li.appendChild(s);ul.insertBefore(li,ul.firstChild);
+ while(ul.children.length>50)ul.removeChild(ul.lastChild);
 }
-connect();
+function telemetry(m){
+ var sev=COL[m.severity]?m.severity:"NORMAL";
+ $("banner").style.setProperty("--c","var("+COL[sev]+")");
+ $("sev").textContent=sev;
+ $("act").textContent=m.action?"Action: "+String(m.action).replace(/_/g," "):(sev==="NORMAL"?"All systems nominal. No action needed.":"Monitoring");
+ var ml=m.ml||{},b=m.bus||{},mo=m.monitors||{},n=(m.nodes||[])[0]||{};
+ $("t-score").textContent=Number(ml.anomaly_score).toFixed(2);$("thr").textContent=ml.threshold;
+ $("t-fps").textContent=Number(b.fps).toFixed(0);$("t-load").textContent=Number(b.load_pct).toFixed(1);
+ $("t-hb").textContent=mo.hb_age_ms;$("t-node").textContent=(n.isolated?"ISOLATED":(n.state||"—"))+" · "+(n.bank||"—");
+ $("model").textContent=ml.model?"Model "+(/^\d/.test(ml.model)?"v":"")+ml.model:"";
+ if(rp===null){setBadge(m.mode==="hw"?"hw":"sim",m.mode==="hw"?"Hardware":"Simulation")}
+ push(score,Number(ml.anomaly_score));push(fps,Number(b.fps));
+ draw($("c1"),score,Number(ml.threshold)||0,CV("--acc"));draw($("c2"),fps,null,CV("--tx"));
+ $("auto").checked=!(m.context&&m.context.auto_recovery===false);
+}
+function handle(txt){
+ var m;try{m=JSON.parse(txt)}catch(e){return}
+ if(!m||m.v!==1)return;
+ if(m.type==="telemetry")telemetry(m);else if(m.type==="event")addEvent(m);
+}
+function setLive(on){live=on;document.querySelectorAll("[data-i],[data-c],#auto").forEach(function(b){b.disabled=!on})}
+function startReplay(){
+ if(rp!==null)return;rp=0;setLive(false);setBadge("replay","Replay");
+ fetch("../assets/sample_run.jsonl").then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(t){
+  var L=t.split("\n").filter(Boolean),i=0;
+  rp=setInterval(function(){if(i>=L.length)i=0;handle(L[i++])},100);
+ }).catch(function(){rp=null;$("act").textContent="Backend offline and no replay file found. Start the server: python -m uvicorn backend.main:app --port 8000"});
+}
+function connect(){
+ var u=(location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws";
+ try{ws=new WebSocket(u)}catch(e){startReplay();return}
+ ws.onopen=function(){tries=0;if(rp){clearInterval(rp);rp=null}setLive(true)};
+ ws.onmessage=function(e){handle(e.data)};
+ ws.onclose=function(){setLive(false);tries++;if(tries>=3){startReplay()}setBadge(rp!==null?"replay":"none",rp!==null?"Replay":"Reconnecting");setTimeout(connect,Math.min(5000,1000*tries))};
+ ws.onerror=function(){try{ws.close()}catch(e){}};
+}
+function post(url,body){
+ $("msg").textContent="Sending…";
+ fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+ .then(function(r){$("msg").textContent=r.ok?"Sent.":"Server refused ("+r.status+")."})
+ .catch(function(){$("msg").textContent="Could not reach the server."});
+}
+document.querySelectorAll("[data-i]").forEach(function(b){b.addEventListener("click",function(){
+ var j=JSON.parse(b.dataset.i);
+ if((j.fault==="hang"||j.fault==="faulty_fw")&&!confirm("Inject this fault now?"))return;
+ post("/api/inject",j)})});
+document.querySelectorAll("[data-c]").forEach(function(b){b.addEventListener("click",function(){post("/api/control",JSON.parse(b.dataset.c))})});
+$("auto").addEventListener("change",function(e){post("/api/control",{cmd:"auto_recovery",on:e.target.checked})});
+window.addEventListener("resize",function(){draw($("c1"),score,0,CV("--acc"));draw($("c2"),fps,null,CV("--tx"))});
+$("theme").addEventListener("click",function(){var r=document.documentElement,n=r.getAttribute("data-theme")==="ember"?"studio":"ember";r.setAttribute("data-theme",n);try{localStorage.setItem("as-theme",n)}catch(e){}draw($("c1"),score,0,CV("--acc"));draw($("c2"),fps,null,CV("--tx"))});
+setLive(false);
+if(/[?&]replay=1/.test(location.search)){startReplay()}else{connect()}
+})();
 </script>
-</body>
-</html>
+</body></html>

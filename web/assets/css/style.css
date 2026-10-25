@@ -1,0 +1,27 @@
+/* AutoShield shared styles. Default theme "studio" matches the landing page;
+   theme "ember" is black / orange / cream. Switch with the Theme button. */
+:root{--bg:#6b879d;--bgfx:#7d9aaf;--surf:#35586e;--surf2:#3d647c;--line:rgba(255,255,255,.3);--tx:#fff;--mut:#e1eaf0;--acc:#edff39;--onacc:#10190c;--ink:#fff;--r:16px;--ease:cubic-bezier(.22,.7,.25,1);
+--s-NORMAL:#b9f5c4;--s-LOW:#fff;--s-MEDIUM:#ffd24a;--s-HIGH:#ffa14a;--s-CRITICAL:#ff8d7d;
+font-family:"Space Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+html[data-theme=ember]{--bg:#0a0a0a;--bgfx:#2a1608;--surf:#151311;--surf2:#201c18;--line:rgba(243,234,216,.16);--tx:#f3ead8;--mut:#b9ae9b;--acc:#ff6a1a;--onacc:#140a02;--ink:#f3ead8;
+--s-NORMAL:#9bd3a1;--s-LOW:#f3ead8;--s-MEDIUM:#ffb020;--s-HIGH:#ff6a1a;--s-CRITICAL:#ff3b30}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,var(--bgfx) 0,var(--bg) 62%) fixed;color:var(--tx);font-weight:400;line-height:1.5;-webkit-font-smoothing:antialiased;transition:background .5s,color .5s}
+a{color:inherit}
+.skip{position:absolute;left:-999px}.skip:focus{left:12px;top:12px;z-index:99;background:var(--acc);color:var(--onacc);padding:8px 12px;border-radius:8px}
+:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+.bar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:16px;padding:12px max(20px,5vw);background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.logo{letter-spacing:-.01em;font-size:20px;text-decoration:none}.bar .sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 20px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--tx);font:inherit;cursor:pointer;text-decoration:none;transition:background .25s var(--ease),transform .25s var(--ease),border-color .25s,box-shadow .25s}
+.btn:hover{border-color:var(--tx)}.btn:active{transform:scale(.97)}
+.btn.pri,.btn.on{background:var(--acc);color:var(--onacc);border-color:var(--acc)}.btn.pri:hover{box-shadow:0 0 28px color-mix(in srgb,var(--acc) 50%,transparent)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.card{background:linear-gradient(180deg,var(--surf2),var(--surf));border:1px solid var(--line);border-radius:var(--r);padding:20px;transition:border-color .3s,transform .3s var(--ease)}
+.card:hover{border-color:var(--acc)}
+.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+.badge{padding:4px 12px;border-radius:999px;border:1px solid var(--line);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.badge[data-m=sim]{color:var(--s-MEDIUM);border-color:var(--s-MEDIUM)}.badge[data-m=hw]{color:var(--onacc);background:var(--acc);border-color:var(--acc)}.badge[data-m=replay]{color:var(--tx);border-color:var(--tx)}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes slidein{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+main>*{animation:rise .7s var(--ease) both}main>*:nth-child(2){animation-delay:.08s}main>*:nth-child(3){animation-delay:.16s}main>*:nth-child(4){animation-delay:.24s}main>*:nth-child(5){animation-delay:.32s}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

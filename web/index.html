@@ -1,34 +1,4 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AutoShield</title>
-<style>
-  body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 0; color: #0F2A43; background: #f4f6f8; }
-  main { max-width: 40rem; margin: 4rem auto; padding: 0 1rem; }
-  h1 { color: #0F2A43; margin-bottom: .2rem; }
-  p.tag { color: #0E6B73; font-size: 1.2rem; margin-top: 0; }
-  a.btn { display: inline-block; background: #0E6B73; color: #fff; padding: .7rem 1.2rem; border-radius: 6px; text-decoration: none; }
-  .chip { display: inline-block; margin-left: 1rem; padding: .2rem .6rem; border-radius: 1rem; background: #ddd; font-size: .9rem; }
-  .ok { background: #cfe9e6; } .bad { background: #f3d0cc; }
-</style>
-</head>
-<body>
-<main>
-  <h1>AutoShield</h1>
-  <p class="tag">Valid on the wire. Wrong in behaviour.</p>
-  <p>Placeholder page from Phase 2. The real landing page is built in Phase 3.</p>
-  <p><a class="btn" href="/dashboard/">Launch dashboard</a><span id="chip" class="chip">checking backend...</span></p>
-</main>
-<script>
-fetch('/api/health').then(r => r.json()).then(j => {
-  const c = document.getElementById('chip');
-  c.textContent = 'backend online'; c.className = 'chip ok';
-}).catch(() => {
-  const c = document.getElementById('chip');
-  c.textContent = 'backend offline: start the server'; c.className = 'chip bad';
-});
-</script>
-</body>
-</html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#708fa2"/><meta name="description" content="AutoShield. An embedded safety and health supervisor for autonomous vehicles. RVCE Experiential Learning project."/><title>AutoShield — Valid on the wire. Wrong in behaviour.</title>  <script type="module" crossorigin src="/assets/index-Zkc0J6V4.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DgcAGnMv.css">
+</head><body><div id="root"></div><!--autoshield-link--><style>.as-dash{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 9px);transform:translateX(-50%);z-index:50;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:26px;padding:0 14px;border-radius:999px;background:#edff39;color:#10190c;text-decoration:none;font:400 12px 'Space Grotesk',sans-serif;letter-spacing:-.01em;box-shadow:0 4px 18px #0003;transition:transform .25s cubic-bezier(.22,.7,.25,1),box-shadow .25s}.as-dash:hover{transform:translateX(-50%) translateY(-2px);box-shadow:0 8px 24px #0004}.as-dash:focus-visible{outline:3px solid #fff;outline-offset:3px}@media(max-width:900px){.as-dash{bottom:auto;left:auto;right:20px;top:calc(env(safe-area-inset-top,0px) + 84px);transform:none;width:40px;height:40px;padding:0;font-size:18px}.as-dash:hover{transform:translateY(-2px)}.as-dash .t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}@media(prefers-reduced-motion:reduce){.as-dash{transition:none}}</style><a class="as-dash" href="/dashboard/" aria-label="Open AutoShield dashboard" title="Open AutoShield dashboard"><span class="t" style="font-size:12px">AutoShield dashboard</span><span aria-hidden="true">→</span></a></body></html>
