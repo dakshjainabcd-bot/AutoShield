@@ -1,5 +1,5 @@
 export type AppearanceMode = 'paint' | 'wheels'
-export const baseExterior = '/media/exterior-polished.png'
+export const baseExterior = '/media/exterior.png'
 export type AppearanceOption = { id: string; label: string; image: string; color?: string }
 export const appearanceOptions: Record<AppearanceMode, AppearanceOption[]> = {
   paint: [
